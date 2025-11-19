@@ -3,6 +3,7 @@ package modules
 import (
 	pgs "github.com/lyft/protoc-gen-star/v2"
 	"github.com/pubg/protoc-gen-jsonschema/pkg/jsonschema"
+	"github.com/pubg/protoc-gen-jsonschema/pkg/meta"
 	"github.com/pubg/protoc-gen-jsonschema/pkg/proto"
 )
 
@@ -12,20 +13,26 @@ type FrontendVisitor struct {
 
 	debugger pgs.DebuggerCommon
 
-	registry      *jsonschema.Registry
-	pluginOptions *proto.PluginOptions
+	registry        *jsonschema.Registry
+	pluginOptions   *proto.PluginOptions
+	optionsResolver *meta.OptionsResolver
 }
 
 var _ pgs.Visitor = (*FrontendVisitor)(nil)
 
-func NewVisitor(debugger pgs.DebuggerCommon, pluginOptions *proto.PluginOptions) *FrontendVisitor {
+func NewVisitor(debugger pgs.DebuggerCommon, pluginOptions *proto.PluginOptions, optionsResolver *meta.OptionsResolver) *FrontendVisitor {
 	v := &FrontendVisitor{
-		debugger:      debugger,
-		registry:      jsonschema.NewRegistry(),
-		pluginOptions: pluginOptions,
+		debugger:        debugger,
+		registry:        jsonschema.NewRegistry(),
+		pluginOptions:   pluginOptions,
+		optionsResolver: optionsResolver,
 	}
 	v.Visitor = pgs.PassThroughVisitor(v)
 	return v
+}
+
+func (v *FrontendVisitor) VisitFile(file pgs.File) (pgs.Visitor, error) {
+	return v, nil
 }
 
 func (v *FrontendVisitor) VisitMessage(message pgs.Message) (pgs.Visitor, error) {
@@ -41,6 +48,14 @@ func (v *FrontendVisitor) VisitMessage(message pgs.Message) (pgs.Visitor, error)
 	} else {
 		schema = buildFromMessage(v.pluginOptions, message, mo)
 	}
+
+	// Add x-options from message options
+	if v.optionsResolver != nil {
+		if opts := v.optionsResolver.ResolveOptions(message.Descriptor().GetOptions()); opts != nil {
+			schema.SetExtrasItem("x-options", opts)
+		}
+	}
+
 	v.registry.AddSchema(message.FullyQualifiedName(), schema)
 	return v, nil
 }
@@ -51,34 +66,32 @@ func (v *FrontendVisitor) VisitField(field pgs.Field) (pgs.Visitor, error) {
 		return nil, nil
 	}
 
+	var schema *jsonschema.Schema
+
 	// if field is well-known type
 	if isWellKnownField(field) {
-		schema := buildFromWellKnownField(field, fo)
-		v.registry.AddSchema(field.FullyQualifiedName(), schema)
-		return v, nil
-	}
-
-	// if field is message or map type
-	fieldType := field.Type()
-	if fieldType.IsMap() {
-		schema := buildFromMapField(v.pluginOptions, field, fo)
-		v.registry.AddSchema(field.FullyQualifiedName(), schema)
-		return v, nil
+		schema = buildFromWellKnownField(field, fo)
+	} else if fieldType := field.Type(); fieldType.IsMap() {
+		// if field is map type
+		schema = buildFromMapField(v.pluginOptions, field, fo)
 	} else if fieldType.ProtoType() == pgs.MessageT {
-		schema := buildFromMessageField(field, fo)
-		v.registry.AddSchema(field.FullyQualifiedName(), schema)
-		return v, nil
+		// if field is message type
+		schema = buildFromMessageField(field, fo)
+	} else if isScalarType(field) {
+		// if field is scalar type (boolean, string, number)
+		schema = buildFromScalaField(v.pluginOptions, field, fo)
+	} else {
+		panic("not supported field type")
 	}
 
-	// if field is scala type
-	// scala = boolean, string, number
-	if isScalarType(field) {
-		schema := buildFromScalaField(v.pluginOptions, field, fo)
-		v.registry.AddSchema(field.FullyQualifiedName(), schema)
-		return v, nil
+	// Add x-options from field options
+	if v.optionsResolver != nil {
+		if opts := v.optionsResolver.ResolveOptions(field.Descriptor().GetOptions()); opts != nil {
+			schema.SetExtrasItem("x-options", opts)
+		}
 	}
 
-	panic("not supported field type")
+	v.registry.AddSchema(field.FullyQualifiedName(), schema)
 	return v, nil
 }
 
@@ -87,6 +100,24 @@ func (v *FrontendVisitor) VisitEnum(enum pgs.Enum) (pgs.Visitor, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Add x-options from enum options
+	if v.optionsResolver != nil {
+		if opts := v.optionsResolver.ResolveOptions(enum.Descriptor().GetOptions()); opts != nil {
+			schema.SetExtrasItem("x-options", opts)
+		}
+		// Add enum value options as x-enum-value-options
+		valueOpts := make(map[string]any)
+		for _, value := range enum.Values() {
+			if valOpts := v.optionsResolver.ResolveOptions(value.Descriptor().GetOptions()); valOpts != nil {
+				valueOpts[value.Name().String()] = valOpts
+			}
+		}
+		if len(valueOpts) > 0 {
+			schema.SetExtrasItem("x-enum-value-options", valueOpts)
+		}
+	}
+
 	v.registry.AddSchema(enum.FullyQualifiedName(), schema)
 	return v, nil
 }

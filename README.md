@@ -174,6 +174,18 @@ example:
   - --jsonschema_opt=respect_protojson_int64=false
 ```
 
+### include_proto_options
+```
+include_proto_options determines whether the plugin should include protobuf options
+as x-options extension fields in the generated JSON Schema.
+When enabled, message options are added as "x-options", field options as "x-options",
+enum options as "x-options", and enum value options as "x-enum-value-options".
+
+default: false
+example:
+  - --jsonschema_opt=include_proto_options=true
+```
+
 ### Protobuf Options
 
 Below tables are not auto-generated features.

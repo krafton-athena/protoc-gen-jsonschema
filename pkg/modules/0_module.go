@@ -5,13 +5,16 @@ import (
 
 	pgs "github.com/lyft/protoc-gen-star/v2"
 	"github.com/pubg/protoc-gen-jsonschema/pkg/jsonschema"
+	"github.com/pubg/protoc-gen-jsonschema/pkg/meta"
 	"github.com/pubg/protoc-gen-jsonschema/pkg/proto"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type Module struct {
 	*pgs.ModuleBase
-	pluginOptions *proto.PluginOptions
+	pluginOptions   *proto.PluginOptions
+	optionsResolver *meta.OptionsResolver
+	xOptionsEnabled bool
 }
 
 func NewModule() *Module {
@@ -25,13 +28,18 @@ func (m *Module) Name() string {
 func (m *Module) InitContext(c pgs.BuildContext) {
 	m.ModuleBase.InitContext(c)
 	m.pluginOptions = proto.GetPluginOptions(c.Parameters())
+	m.xOptionsEnabled, _ = c.Parameters().BoolDefault("include_proto_options", false)
 
 	m.Debugf("pluginOptions: %v", protojson.MarshalOptions{EmitUnpopulated: true}.Format(m.pluginOptions))
 }
 
 func (m *Module) Execute(targets map[string]pgs.File, packages map[string]pgs.Package) []pgs.Artifact {
+	if m.xOptionsEnabled {
+		m.optionsResolver = m.buildOptionsResolver(packages)
+	}
+
 	// Phase: Frontend IntermediateSchemaGenerate
-	visitor := NewVisitor(m, m.pluginOptions)
+	visitor := NewVisitor(m, m.pluginOptions, m.optionsResolver)
 	for _, pkg := range packages {
 		m.CheckErr(pgs.Walk(visitor, pkg), fmt.Sprintf("failed to walk package %s", pkg.ProtoName().String()))
 	}
@@ -95,4 +103,30 @@ func getEntrypointFromFile(file pgs.File, pluginOptions *proto.PluginOptions) pg
 		}
 	}
 	return nil
+}
+
+func collectAllFiles(packages map[string]pgs.Package) []pgs.File {
+	if len(packages) == 0 {
+		return nil
+	}
+
+	seen := map[string]pgs.File{}
+	for _, pkg := range packages {
+		for _, file := range pkg.Files() {
+			seen[file.Name().String()] = file
+		}
+	}
+
+	files := make([]pgs.File, 0, len(seen))
+	for _, file := range seen {
+		files = append(files, file)
+	}
+	return files
+}
+
+func (m *Module) buildOptionsResolver(packages map[string]pgs.Package) *meta.OptionsResolver {
+	files := collectAllFiles(packages)
+	resolver, err := meta.BuildResolver(files)
+	m.CheckErr(err, "failed to build options resolver")
+	return meta.NewOptionsResolver(resolver)
 }

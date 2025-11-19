@@ -1,6 +1,8 @@
 package draft_201909
 
 import (
+	"encoding/json"
+
 	"github.com/iancoleman/orderedmap"
 	"github.com/pubg/protoc-gen-jsonschema/pkg/jsonschema"
 	"github.com/pubg/protoc-gen-jsonschema/pkg/utils"
@@ -175,4 +177,33 @@ func deepCopyMap(schemaMap jsonschema.SchemaMap) *orderedmap.OrderedMap {
 		dst.Set(key, deepCopy(schema))
 	}
 	return dst
+}
+
+// MarshalJSON implements custom JSON marshaling to include Extras fields with x- prefix.
+func (s *Schema) MarshalJSON() ([]byte, error) {
+	type Alias Schema
+	data, err := json.Marshal((*Alias)(s))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(s.Extras) == 0 {
+		return data, nil
+	}
+
+	// Merge Extras into the JSON object
+	var result map[string]json.RawMessage
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+
+	for key, value := range s.Extras {
+		valueData, err := json.Marshal(value)
+		if err != nil {
+			continue
+		}
+		result[key] = valueData
+	}
+
+	return json.Marshal(result)
 }
