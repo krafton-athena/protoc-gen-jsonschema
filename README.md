@@ -174,6 +174,27 @@ example:
   - --jsonschema_opt=respect_protojson_int64=false
 ```
 
+### meta_output
+```
+meta_output determines whether the plugin should emit an additional JSON file that only
+contains protobuf option payloads. This is helpful when you want to attach custom options
+to your protos without polluting the JSON Schema output.
+
+default: false
+example:
+  - --jsonschema_opt=meta_output=true
+```
+
+### meta_output_file_suffix
+```
+meta_output_file_suffix changes the generated metadata file suffix. This option is only used
+when `meta_output=true` and must end with `.json`.
+
+default: .meta.json
+example:
+  - --jsonschema_opt=meta_output_file_suffix=.options.json
+```
+
 ### Protobuf Options
 
 Below tables are not auto-generated features.
