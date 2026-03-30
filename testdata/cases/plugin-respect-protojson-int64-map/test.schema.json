@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$ref": "#/$defs/.tests.Values",
+  "$defs": {
+    ".tests.Values": {
+      "properties": {
+        "int64Map": {
+          "$ref": "#/$defs/.tests.Values.int64_map"
+        }
+      },
+      "type": "object"
+    },
+    ".tests.Values.int64_map": {
+      "additionalProperties": {
+        "type": "string",
+        "format": "int64"
+      },
+      "type": "object"
+    }
+  },
+  "type": "object"
+}

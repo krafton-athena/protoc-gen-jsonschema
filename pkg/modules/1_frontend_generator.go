@@ -211,11 +211,11 @@ func buildFromMapField(pluginOptions *proto.PluginOptions, field pgs.Field, fo *
 	protoType := value.ProtoType()
 	if protoType.IsInt() {
 		if pluginOptions.GetRespectProtojsonInt64() && isInt64(protoType) {
-			schema.Type = "string"
-			schema.Format = "int64"
+			valueSchema.Type = "string"
+			valueSchema.Format = "int64"
 		} else {
-			schema.Type = "integer"
-			fillSchemaByNumericKeywords(schema, fo.GetNumeric())
+			valueSchema.Type = "integer"
+			fillSchemaByNumericKeywords(valueSchema, fo.GetNumeric())
 		}
 	} else if protoType.IsNumeric() {
 		valueSchema.Type = "number"

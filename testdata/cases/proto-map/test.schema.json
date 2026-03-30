@@ -33,6 +33,9 @@
         "intMap": {
           "$ref": "#/$defs/.tests.Values.int_map"
         },
+        "int64Map": {
+          "$ref": "#/$defs/.tests.Values.int64_map"
+        },
         "floatMap": {
           "$ref": "#/$defs/.tests.Values.float_map"
         },
@@ -75,9 +78,17 @@
       },
       "type": "object"
     },
+    ".tests.Values.int64_map": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "type": "object"
+    },
     ".tests.Values.int_map": {
-      "additionalProperties": {},
-      "type": "integer"
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "type": "object"
     },
     ".tests.Values.nested_map": {
       "additionalProperties": {

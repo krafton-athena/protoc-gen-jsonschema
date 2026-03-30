@@ -1,0 +1,12 @@
+name: "plugin-respect-protojson-int64-map"
+description: "test respect_protojson_int64 for map values"
+
+inputFiles: ["test.proto"]
+inputParameters:
+  respect_protojson_int64: true
+
+expectResultFiles: ["test.schema.json"]
+expectResultIsNull: false
+expectFail: false
+
+expectedBehaviorDescription: ""

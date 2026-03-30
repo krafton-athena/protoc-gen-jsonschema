@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package tests;
+
+import "jsonschema.proto";
+
+option (pubg.jsonschema.file) = {entrypoint_message: "Values"};
+
+message Values {
+  map<string, int64> int64_map = 1;
+}
