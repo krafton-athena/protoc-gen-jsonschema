@@ -48,6 +48,17 @@ func (o *OptimizerImpl) optimizeDefinitions(registry *jsonschema.Registry) {
 	for _, key := range deleteKeys {
 		registry.DeleteSchema(key)
 	}
+
+	for _, key := range registry.GetKeys() {
+		schema := registry.GetSchema(key)
+		if schema == nil || schema.Extras == nil {
+			continue
+		}
+		delete(schema.Extras, linkedFromEntrypoint)
+		if len(schema.Extras) == 0 {
+			schema.ClearExtras()
+		}
+	}
 }
 
 func (o *OptimizerImpl) getEntrypointMessage(messages []pgs.Message, fileOptions *proto.FileOptions) pgs.Message {
